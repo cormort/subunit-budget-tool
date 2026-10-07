@@ -1,0 +1,41 @@
+{
+  "schemaVersion": "2.0",
+  "application": "V39.0測試資料",
+  "recordCount": 2,
+  "funds": [
+    {
+      "fundName": "測試作業基金",
+      "budgetYear": "116",
+      "fundType": "作業基金",
+      "sourceFile": "test-op.docx",
+      "structured": [
+        {
+          "main": "一、基金概況",
+          "sub": "",
+          "subSub": "",
+          "content": "這是一筆供基金資料庫匯入測試使用的作業基金資料。"
+        },
+        {
+          "main": "三、本年度營運計畫及預算",
+          "sub": "（二）預算內容",
+          "subSub": "1.業務收支之預計",
+          "content": "業務收入1億2,000萬元，業務成本與費用9,000萬元。"
+        }
+      ]
+    },
+    {
+      "fundName": "測試政事基金",
+      "budgetYear": "116",
+      "fundType": "政事基金",
+      "sourceFile": "test-gov.docx",
+      "structured": [
+        {
+          "main": "一、基金概況",
+          "sub": "",
+          "subSub": "",
+          "content": "這是一筆供階層式查詢與關鍵字搜尋測試使用的政事基金資料。"
+        }
+      ]
+    }
+  ]
+}
