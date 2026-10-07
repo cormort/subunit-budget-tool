@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>作業基金綜計表分析說明產生器 V39.0</title>
+    <style>
+        body { font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif; margin: 20px; line-height: 1.6; background-color: #f8f9fa; color: #212529; }
+        .container { max-width: 900px; margin: 0 auto; background-color: #fff; padding: 25px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h1, h2, h3 { color: #343a40; }
+        h1 { text-align: center; } /* 將 h1 置中 */
+        
+        /* Single Drop Zone */
+        #singleDropZone { border: 3px dashed #007bff; padding: 40px; text-align: center; color: #007bff; border-radius: 8px; transition: background-color 0.2s; margin-bottom: 20px; }
+        #singleDropZone.dragover { background-color: #e7f3ff; border-color: #0056b3; }
+        #singleDropZone strong { font-size: 1.5em; display: block; margin-bottom: 10px; }
+
+        /* File Status Indicators */
+        .file-status-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-bottom: 20px; }
+        .file-status-box { border: 2px solid #ced4da; padding: 15px; text-align: center; border-radius: 5px; background-color: #f8f9fa; }
+        .file-status-box.has-file { background-color: #e9f5ec; border-color: #28a745; color: #155724; }
+        .file-status-box strong { font-size: 1.1em; display: block; margin-bottom: 5px; }
+        .file-name { font-size: 0.85em; font-style: italic; word-break: break-all; color: #495057; }
+        
+        .action-button { display: block; width: 100%; padding: 15px; font-size: 18px; color: white; background-color: #28a745; border: none; border-radius: 5px; cursor: pointer; transition: background-color 0.2s; }
+        .action-button:hover:not(:disabled) { background-color: #218838; }
+        .action-button:disabled { background-color: #a0a0a0; cursor: not-allowed; }
+        .status-message, .error-message { text-align: center; margin-top: 15px; font-weight: bold; }
+        .error-message { color: #dc3545; }
+        
+        .output-container { margin-top: 30px; display: none; }
+        .tab-buttons { border-bottom: 1px solid #dee2e6; margin-bottom: -1px; }
+        .tab-button { background-color: #f8f9fa; border: 1px solid #dee2e6; border-bottom: none; padding: 10px 15px; cursor: pointer; border-radius: 5px 5px 0 0; font-size: 16px; margin-right: 5px; }
+        .tab-button.active { background-color: #fff; border-bottom: 1px solid #fff; font-weight: bold; color: #007bff; }
+        .tab-content { display: none; padding: 20px; border: 1px solid #dee2e6; border-radius: 0 5px 5px 5px; }
+        .tab-content.active { display: block; }
+
+        #reportOutput { white-space: pre-wrap; font-family: 'Times New Roman', 'BiauKai', '標楷體', serif; }
+        #reportOutput h2 { margin-top: 0; color: #007B5E; border-bottom: 2px solid #007B5E; padding-bottom: 5px; }
+        #reportOutput h3 { margin-top: 20px; }
+        .placeholder { color: red; font-weight: bold; }
+        
+        .parsed-table-container table { width: 100%; border-collapse: collapse; font-size: 14px; font-family: system-ui, sans-serif; }
+        .parsed-table-container th, .parsed-table-container td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+        .parsed-table-container th { background-color: #e9ecef; }
+        .parsed-table-container tr:nth-child(even) { background-color: #f8f9fa; }
+    
+        .enhanced-toolbar{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0}.secondary-button{padding:9px 12px;border:1px solid #cbd5e1;border-radius:7px;background:#fff;cursor:pointer;font-weight:700}.secondary-button:hover{background:#f1f5f9}.qc-panel{margin-top:15px;padding:12px;border:1px solid #fbbf24;background:#fffbeb;border-radius:8px}.qc-ok{border-color:#86efac;background:#f0fdf4}.file-remove{margin-top:8px;border:0;background:#fee2e2;color:#b91c1c;border-radius:6px;padding:5px 8px;cursor:pointer}.progressbar{height:8px;background:#e2e8f0;border-radius:99px;overflow:hidden;margin-top:8px}.progressbar i{display:block;height:100%;width:0;background:#1d4ed8;transition:.2s}.placeholder-list{padding-left:22px}.meta-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:15px 0}.meta-grid input{width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:6px}@media(max-width:650px){.meta-grid{grid-template-columns:1fr}}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>作業基金綜計表分析說明產生器 V39.0</h1>
+        <p>請將收支餘絀表、餘絀撥補表、現金流量表的 PDF 檔案（可一次多個）拖曳至下方大框中，程式會自動識別。</p>
+        <p style="color: red;"><b>本程式產生之建議文字僅供產生金額供核對之用，實際文字及金額仍請承辦人自行依基金業務情況調整。</b></p>
+        <div id="singleDropZone">
+            <strong>將 PDF 檔案拖曳至此</strong>
+            <span>或點擊選擇檔案</span>
+            <input type="file" id="fileInput" multiple accept="application/pdf" style="display: none;">
+        </div>
+
+        <div class="file-status-container">
+            <div id="statusBoxIS" class="file-status-box" data-table-type="ISTable">
+                <strong>1. 收支餘絀表</strong>
+                <span class="file-name">尚未上傳</span>
+            </div>
+            <div id="statusBoxRE" class="file-status-box" data-table-type="RETable">
+                <strong>2. 餘絀撥補表</strong>
+                <span class="file-name">尚未上傳</span>
+            </div>
+            <div id="statusBoxCF" class="file-status-box" data-table-type="CFTable">
+                <strong>3. 現金流量表</strong>
+                <span class="file-name">尚未上傳</span>
+            </div>
+        </div>
+        
+        <button id="generateBtn" class="action-button">產生完整分析說明</button>
+        
+        <div id="statusMessage" class="status-message"></div>
+        <div id="errorOutput" class="error-message"></div>
+        
+        <div class="meta-grid"><label>基金名稱（可修正）<input id="manualFundName" placeholder="未填則使用檔名判斷"></label><label>預算年度<input id="manualYear" placeholder="例如：116"></label></div><div class="enhanced-toolbar"><button id="resetAllBtn" class="secondary-button">全部重設</button><button id="copyReportBtn" class="secondary-button">複製純文字</button><button id="downloadTxtBtn" class="secondary-button">下載 TXT</button><button id="downloadHtmlBtn" class="secondary-button">下載 HTML</button><button id="exportParsedBtn" class="secondary-button">匯出解析 Excel</button></div><div class="progressbar"><i id="genProgress"></i></div><div id="qualityChecks" class="qc-panel" style="display:none"></div><div class="output-container" id="outputContainer">
+            <div class="tab-buttons">
+                <button class="tab-button active" onclick="openTab(event, 'analysisTab')">分析說明</button>
+                <button class="tab-button" onclick="openTab(event, 'isTab')">收支餘絀表(解析資料)</button>
+                <button class="tab-button" onclick="openTab(event, 'reTab')">餘絀撥補表(解析資料)</button>
+                <button class="tab-button" onclick="openTab(event, 'cfTab')">現金流量表(解析資料)</button><button class="tab-button" onclick="openTab(event, 'reviewTab')">勾稽及待補項目</button>
+            </div>
+            
+            <div id="analysisTab" class="tab-content active">
+                <div id="reportOutput"></div>
+            </div>
+            
+            <div id="isTab" class="tab-content">
+                <div id="parsedIsTable" class="parsed-table-container"></div>
+            </div>
+            
+            <div id="reTab" class="tab-content">
+                <div id="parsedReTable" class="parsed-table-container"></div>
+            </div>
+
+            <div id="reviewTab" class="tab-content"><div id="reviewOutput"></div></div><div id="cfTab" class="tab-content">
+                <div id="parsedCfTable" class="parsed-table-container"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function openTab(evt, tabName) {
+            var i, tabcontent, tabbuttons;
+            tabcontent = document.getElementsByClassName("tab-content");
+            for (i = 0; i < tabcontent.length; i++) {
+                tabcontent[i].style.display = "none";
+            }
+            tabbuttons = document.getElementsByClassName("tab-button");
+            for (i = 0; i < tabbuttons.length; i++) {
+                tabbuttons[i].className = tabbuttons[i].className.replace(" active", "");
+            }
+            document.getElementById(tabName).style.display = "block";
+            evt.currentTarget.className += " active";
+        }
+        document.addEventListener('DOMContentLoaded', () => {
+             document.querySelector('.tab-button').click();
+        });
+    </script>
+
+    <script src="assets/vendor/pdf.min.js"></script>
+    <script src="assets/vendor/xlsx.full.min.js"></script>
+    <script>
+        pdfjsLib.GlobalWorkerOptions.workerSrc = "assets/vendor/pdf.worker.min.js";
+
+        const singleDropZone = document.getElementById('singleDropZone');
+        const fileInput = document.getElementById('fileInput');
+        const generateBtn = document.getElementById('generateBtn');
+        const statusMessage = document.getElementById('statusMessage');
+        const errorOutput = document.getElementById('errorOutput');
+        const outputContainer = document.getElementById('outputContainer');
+        const reportOutput = document.getElementById('reportOutput');
+        
+        let files = { ISTable: null, RETable: null, CFTable: null };
+        let parsedData = { ISTable: null, RETable: null, CFTable: null };
+
+        singleDropZone.addEventListener('click', () => fileInput.click());
+        singleDropZone.addEventListener('dragover', (e) => { e.preventDefault(); singleDropZone.classList.add('dragover'); });
+        singleDropZone.addEventListener('dragleave', (e) => { e.preventDefault(); singleDropZone.classList.remove('dragover'); });
+        singleDropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            singleDropZone.classList.remove('dragover');
+            handleFiles(e.dataTransfer.files);
+        });
+        fileInput.addEventListener('change', (e) => {
+            handleFiles(e.target.files);
+        });
+
+        async function handleFiles(droppedFiles) {
+            statusMessage.textContent = '識別檔案中...';
+            errorOutput.textContent = '';
+            
+            const filePromises = Array.from(droppedFiles).map(file => identifyAndAssignFile(file));
+            await Promise.all(filePromises);
+
+            statusMessage.textContent = '檔案識別完成，請點擊按鈕生成報告。';
+        }
+
+        async function identifyAndAssignFile(file) {
+            if (!file || file.type !== 'application/pdf') return;
+            try {
+                const typedarray = new Uint8Array(await file.arrayBuffer());
+                const pdfDoc = await pdfjsLib.getDocument({data:typedarray,cMapUrl:'assets/vendor/cmaps/',cMapPacked:true,standardFontDataUrl:'assets/vendor/standard_fonts/'}).promise;
+                const page = await pdfDoc.getPage(1);
+                const textContent = await page.getTextContent();
+                const text = textContent.items.map(item => item.str).join('');
+
+                let tableType = null;
+                // Refined keywords for better accuracy
+                if (text.includes('賸餘之部') && text.includes('分配之部') || text.includes('短絀之部') && text.includes('填補之部')) {
+                    tableType = 'RETable';
+                } else if (text.includes('投資活動之現金流量') && text.includes('籌資活動之現金流量')) {
+                    tableType = 'CFTable';
+                } else if (text.includes('業務收入') && text.includes('業務成本')) {
+                    tableType = 'ISTable';
+                }
+
+                if (tableType) {
+                    if (files[tableType]) errorOutput.textContent += `已以 "${file.name}" 取代同類型檔案 "${files[tableType].name}"。\n`;
+                    files[tableType] = file;
+                    const boxId = `statusBox${tableType.replace('Table', '')}`;
+                    const statusBox = document.getElementById(boxId);
+                    statusBox.classList.add('has-file');
+                    statusBox.querySelector('.file-name').textContent = file.name;
+                } else {
+                    errorOutput.textContent += `無法識別檔案 "${file.name}" 的類型。\n`;
+                }
+            } catch (err) {
+                 errorOutput.textContent += `處理檔案 "${file.name}" 時發生錯誤: ${err.message}\n`;
+            }
+        }
+        
+        generateBtn.addEventListener('click', handleGenerateReport);
+        
+        function generateHtmlTable(data) {
+            if (!data || data.length === 0) {
+                return '<p>無解析資料或檔案未提供。</p>';
+            }
+            let table = '<table><thead><tr><th>項目名稱</th>';
+            const numCols = data[0].data.length;
+            for (let i=1; i<=numCols; i++) {
+                table += `<th>資料欄 ${i}</th>`;
+            }
+            table += '</tr></thead><tbody>';
+            data.forEach(row => {
+                table += `<tr><td>${row.name}</td>`;
+                row.data.forEach(cell => {
+                    table += `<td>${cell}</td>`;
+                });
+                table += '</tr>';
+            });
+            table += '</tbody></table>';
+            return table;
+        }
+
+        async function handleGenerateReport() {
+            generateBtn.disabled = true;
+            statusMessage.textContent = '處理中，請稍候...';
+            errorOutput.textContent = '';
+            outputContainer.style.display = 'none';
+            reportOutput.innerHTML = '';
+            document.getElementById('parsedIsTable').innerHTML = '';
+            document.getElementById('parsedReTable').innerHTML = '';
+            document.getElementById('parsedCfTable').innerHTML = '';
+
+            try {
+                let fullReportHtml = `<h2>(二) 預算內容</h2>`;
+                let hasContent = false;
+                
+                parsedData = { ISTable: null, RETable: null, CFTable: null };
+
+                if (files.ISTable) {
+                    statusMessage.textContent = '正在解析收支餘絀表...';
+                    parsedData.ISTable = await parsePdfToRawData(files.ISTable, parseISTable);
+                    if (parsedData.ISTable) {
+                        fullReportHtml += generateAnalysisText('ISTable', parsedData.ISTable);
+                        hasContent = true;
+                    }
+                }
+                document.getElementById('parsedIsTable').innerHTML = generateHtmlTable(parsedData.ISTable);
+                
+                if (files.RETable) {
+                    statusMessage.textContent = '正在解析餘絀撥補表...';
+                    // Pass file name to analysis function for special cases
+                    const fundName = files.RETable ? files.RETable.name : '';
+                    parsedData.RETable = await parsePdfToRawData(files.RETable, parseRETable);
+                    if (parsedData.RETable) {
+                        fullReportHtml += generateAnalysisText('RETable', parsedData.RETable, fundName);
+                        hasContent = true;
+                    }
+                }
+                 document.getElementById('parsedReTable').innerHTML = generateHtmlTable(parsedData.RETable);
+
+
+                if (files.CFTable) {
+                    statusMessage.textContent = '正在解析現金流量表...';
+                    const fundName = files.CFTable ? files.CFTable.name : '';
+                    parsedData.CFTable = await parsePdfToRawData(files.CFTable, parseCFTable);
+                    if (parsedData.CFTable) {
+                        fullReportHtml += generateAnalysisText('CFTable', parsedData.CFTable, fundName);
+                        hasContent = true;
+                    }
+                }
+                 document.getElementById('parsedCfTable').innerHTML = generateHtmlTable(parsedData.CFTable);
+
+                
+                if (hasContent) {
+                    reportOutput.innerHTML = fullReportHtml;
+                    outputContainer.style.display = 'block';
+                    document.querySelector('.tab-button').click();
+                    statusMessage.textContent = '報告已成功生成！';
+                } else {
+                    errorOutput.textContent = '未能從提供的檔案中生成任何分析內容。';
+                    if (Object.values(parsedData).some(d => d && d.length > 0)) {
+                       outputContainer.style.display = 'block';
+                       document.querySelectorAll('.tab-button')[1].click();
+                    }
+                }
+
+            } catch (err) {
+                console.error("生成報告時發生錯誤:", err);
+                errorOutput.textContent = `處理失敗: ${err.message}`;
+                statusMessage.textContent = '';
+            } finally {
+                generateBtn.disabled = false;
+            }
+        }
+        
+        async function parsePdfToRawData(file, parserFunc) {
+            const typedarray = new Uint8Array(await file.arrayBuffer());
+            const pdfDoc = await pdfjsLib.getDocument({data:typedarray,cMapUrl:'assets/vendor/cmaps/',cMapPacked:true,standardFontDataUrl:'assets/vendor/standard_fonts/'}).promise;
+            const allItems = [];
+            for (let pageNo = 1; pageNo <= pdfDoc.numPages; pageNo++) {
+                statusMessage.textContent = `正在解析 ${file.name}：第 ${pageNo} / ${pdfDoc.numPages} 頁`;
+                document.getElementById('genProgress').style.width = `${pageNo / pdfDoc.numPages * 100}%`;
+                const page = await pdfDoc.getPage(pageNo);
+                const textContent = await page.getTextContent();
+                allItems.push(...textContent.items.map(item => {
+                    const copy = { ...item, transform: [...item.transform] };
+                    copy.transform[5] -= (pageNo - 1) * 10000;
+                    return copy;
+                }));
+            }
+            return parserFunc(allItems);
+        }
+
+        // --- Table Parsing Logic (Stable) ---
+        const cleanString = (str) => str ? str.replace(/[\s\u3000]/g, '') : '';
+        const parseNumber = (str) => { if (typeof str !== 'string' || !str.trim() || str.trim() === '-') return NaN; let cleanStr = str.replace(/,/g, ''); if (cleanStr.startsWith('(') && cleanStr.endsWith(')')) { return -parseFloat(cleanStr.substring(1, cleanStr.length - 1)); } return parseFloat(cleanStr); }
+        function extractLines(items) { const Y_TOLERANCE = 5; let lines = []; let currentLineBuffer = []; let lastY = -1; const sortedItems = [...items].sort((a,b)=>{ const yA=a.transform[5], yB=b.transform[5], xA=a.transform[4], xB=b.transform[4]; if(Math.abs(yA-yB) > Y_TOLERANCE) return yB-yA; return xA-xB; }); for(const item of sortedItems){ if(lastY === -1 || Math.abs(item.transform[5]-lastY) <= Y_TOLERANCE) { currentLineBuffer.push(item); } else { if (currentLineBuffer.length > 0) lines.push(currentLineBuffer.sort((a,b)=>a.transform[4]-b.transform[4]).map(i=>i.str).join(' ')); currentLineBuffer = [item]; } lastY = item.transform[5]; } if (currentLineBuffer.length > 0) lines.push(currentLineBuffer.sort((a,b)=>a.transform[4]-b.transform[4]).map(i=>i.str).join(' ')); return lines; }
+        function parseMultiColumnTable(items, config) { const lines = extractLines(items); if(!lines || lines.length === 0) return null; let processedLines = []; const linesToSkip = new Set(); for(let i=0; i<lines.length; i++){ if(linesToSkip.has(i)) continue; let currentLine = lines[i]; if (currentLine.includes("追溯適用及追溯重編之")) { let nextLineIndex = i + 1; if(nextLineIndex < lines.length && lines[nextLineIndex].trim() === "影響數") { currentLine = currentLine.replace("追溯適用及追溯重編之", "追溯適用及追溯重編之影響數"); linesToSkip.add(nextLineIndex); } } processedLines.push(currentLine); } const headerLineIndex = processedLines.findIndex(line => /(金\s*額.*%|金\s*額.*％)/.test(line)); if(headerLineIndex === -1) { return null; } let tableData = []; for(let i = headerLineIndex + 1; i < processedLines.length; i++) { const line = processedLines[i].trim(); if(!line) continue; let parts = line.split(/\s+/).filter(p => p); if (parts.length < 1) continue; let nameParts = [], dataParts = []; let firstDataIndex = parts.findIndex(p => /^[-\d,()$%.％]+$/.test(p.replace(/,/g, ''))); if (firstDataIndex !== -1) { nameParts = parts.slice(0, firstDataIndex); dataParts = parts.slice(firstDataIndex); } else { nameParts = parts; dataParts = []; } if(config.autoFilter && dataParts.length > config.numDataColumns + 2) { dataParts = dataParts.filter((_, index) => index % 2 === 0); } let itemName = nameParts.join(' '); let data = dataParts; while(data.length < config.numDataColumns) data.push('-'); tableData.push({name: itemName, data: data.slice(0, config.numDataColumns)}); } return tableData.filter(row => row.name.trim()); }
+        const parseISTable = (items) => parseMultiColumnTable(items, { numDataColumns: 8 });
+        const parseRETable = (items) => parseMultiColumnTable(items, { numDataColumns: 6, autoFilter: true });
+        function parseCFTable(items) { const lines = extractLines(items); if(!lines || lines.length === 0) return null; let anchorRegex = /項\s*目\s*本\s*年\s*度\s*預\s*算\s*數/; let startIndex = lines.findIndex(line => anchorRegex.test(line)); if (startIndex === -1) { anchorRegex = /業務活動之現金流量|營業活動之現金流量/; startIndex = lines.findIndex(line => anchorRegex.test(line)); if (startIndex !== -1) startIndex--; else return null; } let rawData = []; for (let i = startIndex + 1; i < lines.length; i++) { const line = lines[i].trim(); if (!line || line.startsWith('註')) continue; const parts = line.split(/\s+/).filter(p => p); let itemName = '', value = ''; const firstDataIndex = parts.findIndex(p => /^[-\d,()$]+$/.test(p.replace(/,/g, ''))); if (firstDataIndex !== -1) { itemName = parts.slice(0, firstDataIndex).join(' '); value = parts.slice(firstDataIndex).join(' '); } else { itemName = parts.join(' '); } rawData.push({ name: itemName, data: [value] }); if (cleanString(itemName).includes('期末現金') || cleanString(itemName).includes('現金期末餘額')) break; } return rawData; }
+    
+               // --- Analysis Text Generation (v59.1 - Variable Name Bug Fix) ---
+               function generateAnalysisText(tableType, rawData, fundName = '') {
+            const findRow = (keywords, exact = false) => {
+                if (exact) {
+                    return rawData.find(row => keywords.some(kw => cleanString(row.name) === cleanString(kw)));
+                }
+                return rawData.find(row => keywords.some(kw => cleanString(row.name).includes(cleanString(kw))));
+            };
+            
+            const getValByKeywords = (keywords, col = 0, exact = false) => {
+                const row = findRow(keywords, exact);
+                return row && row.data[col] ? parseNumber(row.data[col]) : NaN;
+            };
+
+            const formatDetailed = (num) => {
+                if (isNaN(num) || num === null) return '0元';
+                if (num === 0) return '0元';
+                const val = Math.round(Math.abs(num) * 1000);
+                const yi = Math.floor(val / 100000000); 
+                const wan = Math.floor((val % 100000000) / 10000); 
+                const yuan = val % 10000; 
+                let parts = []; 
+                if (yi > 0) parts.push(`${yi.toLocaleString('en-US')}億`); 
+                if (wan > 0) parts.push(`${wan.toLocaleString('en-US')}萬`);
+                if (yuan > 0 || (yi === 0 && wan === 0)) {
+                   parts.push(`${yuan.toLocaleString('en-US')}元`);
+                } else {
+                   if (parts.length > 0) {
+                       const lastPart = parts[parts.length-1];
+                       if (!lastPart.endsWith('元')) {
+                           parts[parts.length-1] += '元';
+                       }
+                   }
+                }
+                return parts.join('');
+            };
+            
+            const connector = (list) => {
+                if (!list || list.length === 0) return '';
+                if (list.length === 1) return list[0];
+                if (list.length === 2) return list.join('及');
+                return list.slice(0, -1).join('、') + `及${list.slice(-1)}`;
+            };
+
+            const placeholder = (text) => `<span class="placeholder">${text}</span>`;
+            let html = '';
+            
+            if (tableType === 'ISTable') {
+                html += `<h3>1. 業務收支之預計</h3>`;
+                const items = [ 
+                    { name: "業務收入", desc: `主要係${placeholder('(...請在此插入主要收入項目...)')}${placeholder('(或自行刪除)')}` }, 
+                    { name: "業務成本與費用", desc: `主要係${placeholder('(...請在此插入主要成本項目...)')}${placeholder('(或自行刪除)')}` }, 
+                    { name: "業務外收入", desc: `主要係${placeholder('(...請在此插入主要業務外收入項目...)')}${placeholder('(或自行刪除)')}` }, 
+                    { name: "業務外費用", desc: `主要係${placeholder('(...請在此插入主要業務外費用項目...)')}${placeholder('(或自行刪除)')}` }
+                ];
+                let p_idx = 1;
+                items.forEach(item => {
+                    const row = findRow([item.name]);
+                    if (!row) return;
+                    
+                    const current_val = parseNumber(row.data[0]);
+                    const last_val = parseNumber(row.data[2]);
+                    const diff_val = parseNumber(row.data[6]);
+                    const diff_pct = row.data[7] || '0.00';
+
+                    if (isNaN(current_val) && isNaN(last_val)) return;
+
+                    const dir = diff_val >= 0 ? "增加" : "減少";
+                    html += `<p>(${p_idx++})${item.name}${formatDetailed(current_val)}，${item.desc}，較上年度預算數${formatDetailed(last_val)}，計${dir}${formatDetailed(Math.abs(diff_val))}，約${diff_pct}％。</p>`;
+                });
+                
+                const surplus_kw = ["本期賸餘(短絀)", "本期純益(純損)"];
+                const surplusRow = findRow(surplus_kw);
+                if (surplusRow) {
+                    const current_surplus = parseNumber(surplusRow.data[0]);
+                    const last_surplus = parseNumber(surplusRow.data[2]);
+                    const diff_surplus = parseNumber(surplusRow.data[6]);
+                    const diff_pct_surplus = surplusRow.data[7] || '0.00';
+                    
+                    const curStatus = current_surplus >= 0 ? "賸餘" : "短絀";
+                    const lastStatus = last_surplus >= 0 ? "賸餘" : "短絀";
+                    
+                    let text = `(${p_idx++})業務總收支相抵後，計${curStatus}${formatDetailed(Math.abs(current_surplus))}，`;
+                    
+                    if (Math.sign(current_surplus) * Math.sign(last_surplus) < 0 && current_surplus !== 0 && last_surplus !== 0) { 
+                        text += `與上年度預算數${lastStatus}${formatDetailed(Math.abs(last_surplus))}比較，由${lastStatus}轉為${curStatus}。`;
+                    } else { 
+                        const finalDir = diff_surplus >= 0 ? "增加" : "減少"; 
+                        const lastAmountText = (curStatus === lastStatus) ? formatDetailed(Math.abs(last_surplus)) : `${lastStatus}${formatDetailed(Math.abs(last_surplus))}`;
+                        text += `較上年度預算數${lastAmountText}，計${finalDir}${formatDetailed(Math.abs(diff_surplus))}，約${diff_pct_surplus}％。`;
+                    }
+                    html += `<p>${text}</p>`;
+                }
+            }
+            else if (tableType === 'RETable') {
+                html += `<h3>2. 餘絀撥補之預計</h3>`;
+                const data = {
+                    this_surplus: getValByKeywords(["本期賸餘", "本期純益"], 0),
+                    prior_surplus: getValByKeywords(["前期未分配賸餘", "以前年度未分配賸餘"], 0),
+                    surplus_total: getValByKeywords(["賸餘之部", "可分配賸餘", "賸餘合計"], 0),
+                    dist_offset_from_surplus: getValByKeywords(["填補累積短絀"], 0),
+                    dist_remit: getValByKeywords(["解繳公庫"], 0),
+                    dist_fund: getValByKeywords(["賸餘撥充基金"], 0),
+                    dist_reserve: getValByKeywords(["提存公積"], 0),
+                    surplus_final: getValByKeywords(["未分配賸餘"], 0, true),
+                    
+                    this_deficit: getValByKeywords(["本期短絀", "本期純損"], 0),
+                    prior_deficit: getValByKeywords(["前期待填補之短絀", "以前年度待填補之短絀"], 0),
+                    deficit_total: getValByKeywords(["短絀之部", "待填補之短絀", "短絀合計"], 0),
+                    fill_surplus: getValByKeywords(["撥用賸餘"], 0),
+                    fill_reserve: getValByKeywords(["撥用公積"], 0),
+                    fill_fund: getValByKeywords(["折減基金"], 0),
+                    deficit_final: getValByKeywords(["待填補之短絀"], 0, true)
+                };
+
+                let hasOutput = false;
+                let surplusText = '';
+                let deficitText = '';
+                
+                const hasPriorSurplus = data.prior_surplus > 0;
+                const hasPriorDeficit = data.prior_deficit > 0;
+                const hasThisDeficit = data.this_deficit > 0;
+                const hasThisSurplus = data.this_surplus > 0;
+                const isUniversityFund = fundName.includes('大學校院');
+
+                const totalSurplusAvailable = (data.this_surplus || 0) + (data.prior_surplus || 0);
+                if (totalSurplusAvailable > 0 || (!isNaN(data.surplus_total) && data.surplus_total > 0)) {
+                    let text = isUniversityFund ? '各校務基金本年度預算賸餘合計' : '本年度預算賸餘';
+                     text += `${formatDetailed(data.this_surplus)}`;
+
+                    if (hasPriorSurplus) {
+                        text += `，連同以前年度未分配賸餘${formatDetailed(data.prior_surplus)}，共有賸餘${formatDetailed(data.surplus_total || totalSurplusAvailable)}，`;
+                    } else {
+                        text += `，`;
+                    }
+                    
+                    const dists = [];
+                    const distItems = {};
+                    if (data.dist_offset_from_surplus > 0) { dists.push(`填補累積短絀`); distItems['填補累積短絀'] = data.dist_offset_from_surplus; }
+                    if (data.dist_reserve > 0) { dists.push(`提存公積`); distItems['提存公積'] = data.dist_reserve; }
+                    if (data.dist_fund > 0) { dists.push(`賸餘撥充基金數`); distItems['賸餘撥充基金數'] = data.dist_fund; }
+                    if (data.dist_remit > 0) { dists.push(`解繳公庫淨額`); distItems['解繳公庫淨額'] = data.dist_remit; }
+                    
+                    const totalDist = Object.values(distItems).reduce((a, b) => a + b, 0);
+
+                    if (dists.length === 0) {
+                        text += `留待以後年度處理。`;
+                    } else if (dists.length === 1 && cleanString(dists[0]) === "賸餘撥充基金數" && Math.abs((data.surplus_total || totalSurplusAvailable) - totalDist) > 10) {
+                         text += `除撥充基金${formatDetailed(distItems[dists[0]])}外，尚餘${formatDetailed(data.surplus_final)}，留待以後年度處理。`;
+                    } else if (dists.length === 1 && Math.abs((data.surplus_total || totalSurplusAvailable) - totalDist) < 10) {
+                        text += `悉數${dists[0]}。`;
+                    } else if (Math.abs((data.surplus_total || totalSurplusAvailable) - totalDist) < 10) { 
+                        const distTexts = dists.map(d => `${d}${formatDetailed(distItems[d])}`);
+                        text += `悉數${connector(distTexts)}。`;
+                    } else {
+                        const distTexts = dists.map(d => `${d}${formatDetailed(distItems[d])}`);
+                        const final_surplus = !isNaN(data.surplus_final) ? data.surplus_final : totalSurplusAvailable - totalDist;
+                        text += `除${connector(distTexts)}外，尚餘${formatDetailed(final_surplus)}，留待以後年度處理。`;
+                    }
+                    surplusText = `<p>${(data.deficit_total > 0) ? '(1)賸餘之部：' : ''}${text}</p>`;
+                    hasOutput = true;
+                }
+
+                const totalDeficitToFill = (data.this_deficit || 0) + (data.prior_deficit || 0);
+                if (totalDeficitToFill > 0 || (!isNaN(data.deficit_total) && data.deficit_total > 0)) {
+                    const fills = []; 
+                    let text = ``;
+                    
+                    if (hasThisDeficit) {
+                         text += isUniversityFund ? '各校務基金本年度預算短絀合計' : '本年度預算短絀';
+                         text += `${formatDetailed(data.this_deficit)}`;
+                         if (hasThisSurplus) { 
+                             text += placeholder("（係○○基金分預算短絀之數）");
+                         }
+                    }
+                    
+                    if (hasPriorDeficit) {
+                        if (text) {
+                            text += `，連同以前年度待填補之短絀${formatDetailed(data.prior_deficit)}，共有短絀${formatDetailed(data.deficit_total || totalDeficitToFill)}，`;
+                        } else {
+                            text += `以前年度待填補之短絀${formatDetailed(data.prior_deficit)}，`;
+                        }
+                    } else if (text) {
+                        text += `，`;
+                    }
+
+                    if(data.fill_surplus > 0) fills.push(`撥用賸餘${formatDetailed(data.fill_surplus)}`);
+                    if(data.fill_reserve > 0) fills.push(`撥用公積${formatDetailed(data.fill_reserve)}`);
+                    if(data.fill_fund > 0) fills.push(`折減基金${formatDetailed(data.fill_fund)}`);
+                    
+                    const totalFill = (data.fill_surplus || 0) + (data.fill_reserve || 0) + (data.fill_fund || 0);
+
+                    if (fills.length === 0) {
+                        text += `留待以後年度填補。`;
+                    } else if (Math.abs((data.deficit_total || totalDeficitToFill) - totalFill) < 10) {
+                        text += `悉數${connector(fills)}填補。`;
+                    } else {
+                        const final_deficit = !isNaN(data.deficit_final) ? data.deficit_final : (data.deficit_total || totalDeficitToFill) - totalFill;
+                        text += `除${connector(fills)}填補外，尚有短絀${formatDetailed(final_deficit)}，留待以後年度填補。`;
+                    }
+                    deficitText = `<p>${(totalSurplusAvailable > 0) ? '(2)短絀之部：' : ''}${text}</p>`;
+                    hasOutput = true;
+                }
+                
+                if (hasOutput) {
+                    html += surplusText + deficitText;
+                } else {
+                     html += `<p>本年度預算賸餘無列數，故無撥補事項。</p>`;
+                }
+            }
+            else if (tableType === 'CFTable') {
+                html += `<h3>3. 現金流量之預計</h3>`;
+                let p_idx = 1;
+
+                const generateSimpleFlowText = (activity) => {
+                     const totalRow = findRow([`${activity}之淨現金流入`, `${activity}之淨現金流出`]);
+                     if (!totalRow) return null;
+                     const total = parseNumber(totalRow.data[0]);
+                     if (isNaN(total) || total === 0) return null;
+                     
+                     const flowDir = total >= 0 ? '流入' : '流出';
+                     let text = `${activity}之淨現金${flowDir}${formatDetailed(Math.abs(total))}`;
+
+                     const startIdx = rawData.findIndex(r => cleanString(r.name).includes(cleanString(`${activity}之現金流量`)));
+                     const endIdx = rawData.findIndex(r => r === totalRow);
+
+                     if(startIdx !== -1 && endIdx !== -1 && endIdx > startIdx) {
+                         const items = rawData.slice(startIdx + 1, endIdx);
+                         const inflows = items.filter(i => parseNumber(i.data[0]) > 0); 
+                         const outflows = items.filter(i => parseNumber(i.data[0]) < 0);
+                         
+                         const formatItemText = (item) => {
+                             let itemName = item.name;
+                             const itemValue = formatDetailed(Math.abs(parseNumber(item.data[0])));
+                             if (itemName.includes('、') || itemName.includes('及')) {
+                                 itemName += placeholder('（請修正為正確科目）');
+                             }
+                             if (cleanString(itemName).includes('賸餘分配') || cleanString(itemName).includes('解繳公庫')) {
+                                 return `解繳公庫淨額${placeholder('（倘有其他依法分配情形，請修正為賸餘依法分配數）')}${itemValue}`;
+                             }
+                             return `${itemName}${itemValue}`;
+                         };
+
+                         if (inflows.length + outflows.length === 1) {
+                             const singleItem = inflows[0] || outflows[0];
+                             let singleItemName = singleItem.name;
+                             if (cleanString(singleItemName).includes('賸餘分配') || cleanString(singleItemName).includes('解繳公庫')) {
+                                  singleItemName = `解繳公庫淨額${placeholder('（倘有其他依法分配情形，請修正為賸餘依法分配數）')}`;
+                             } else if (singleItemName.includes('、') || singleItemName.includes('及')) {
+                                 singleItemName += placeholder('（請修正為正確科目）');
+                             }
+                             return `${text}，係${singleItemName}之數。`;
+                         }
+                         
+                         if (inflows.length > 0) {
+                             const totalInflow = inflows.reduce((sum, i) => sum + parseNumber(i.data[0]), 0); 
+                             const inflowTexts = inflows.map(formatItemText);
+                             text += `，其中現金流入${formatDetailed(Math.abs(totalInflow))}，包括${inflowTexts.join('，')}`;
+                         }
+
+                         if (outflows.length > 0) {
+                             const totalOutflow = outflows.reduce((sum, i) => sum + Math.abs(parseNumber(i.data[0])), 0); 
+                             const outflowTexts = outflows.map(formatItemText);
+                             text += (inflows.length > 0 ? '；' : '，其中') + `現金流出${formatDetailed(Math.abs(totalOutflow))}，包括${outflowTexts.join('，')}。`;
+                         } else {
+                            text += `。`;
+                         }
+                     } else {
+                        text += `。`;
+                     }
+                     return text;
+                };
+                
+                const isUniversityFund = fundName.includes('大學校院');
+
+                const bizTotal = getValByKeywords(["業務活動之淨現金流入", "營業活動之淨現金流入", "業務活動之淨現金流出", "營業活動之淨現金流出"]);
+                if (!isNaN(bizTotal)) {
+                    let bizText = isUniversityFund ? `各校務基金業務活動之淨現金流入合計${formatDetailed(Math.abs(bizTotal))}。` : `業務活動之淨現金${bizTotal >= 0 ? '流入' : '流出'}${formatDetailed(Math.abs(bizTotal))}。`;
+                    html += `<p>(${p_idx++})${bizText}</p>`;
+                }
+
+                const ppeAmount = getValByKeywords(["增加不動產"], 0);
+                const hasPpe = !isNaN(ppeAmount) && ppeAmount !== 0;
+                const investText = generateSimpleFlowText('投資活動');
+                if (investText) {
+                    let wrappedText = investText;
+                    if (isUniversityFund) {
+                        const totalInvest = getValByKeywords(["投資活動之淨現金流入", "投資活動之淨現金流出"]);
+                        if(!isNaN(totalInvest) && investText.includes('其中')) {
+                             wrappedText = `各校務基金投資活動之淨現金${totalInvest >= 0 ? '流入' : '流出'}合計${formatDetailed(Math.abs(totalInvest))}，${investText.substring(investText.indexOf('其中'))}`;
+                        }
+                    }
+
+                    if (hasPpe) {
+                        html += `<p>(${p_idx++})投資活動之現金流量</p>`;
+                        html += `<p>①${wrappedText}</p>`;
+                        const ppeFormattedAmount = formatDetailed(Math.abs(ppeAmount));
+                        let ppeText = isUniversityFund ? `本年度固定資產建設改良擴充之數，係上述增加不動產、廠房及設備${ppeFormattedAmount}，加計未動用現金部分${placeholder('[...元]')}，共計${placeholder('[...元]')}，其中：` : `本年度固定資產建設改良擴充之數，係上述增加不動產、廠房及設備${ppeFormattedAmount}，其中：`;
+                        html += `<p>②${ppeText}<br>A.專案計畫部分 ${placeholder('[...元]')}，均為繼續/新興計畫，包括${placeholder('(...請填寫專案計畫明細...)')}。<br>B.一般建築及設備計畫部分 ${placeholder('[...元]')}，包括${placeholder('(...請填寫一般建築及設備明細...)')}。</p>`;
+                    } else {
+                        html += `<p>(${p_idx++})${wrappedText}</p>`;
+                    }
+                }
+
+                const financeText = generateSimpleFlowText('籌資活動');
+                if (financeText) {
+                     let wrappedText = financeText;
+                     if (isUniversityFund) {
+                        const totalFinance = getValByKeywords(["籌資活動之淨現金流入", "籌資活動之淨現金流出"]);
+                        if(!isNaN(totalFinance) && financeText.includes('其中')) {
+                            wrappedText = `各校務基金籌資活動之淨現金${totalFinance >= 0 ? '流入' : '流出'}合計${formatDetailed(Math.abs(totalFinance))}，${financeText.substring(financeText.indexOf('其中'))}`;
+                        }
+                    }
+                    html += `<p>(${p_idx++})${wrappedText}</p>`;
+                }
+
+                const netChange = getValByKeywords(["現金及約當現金之淨增", "現金及約當現金之淨減"]);
+                const cash_end = getValByKeywords(["期末現金及約當現金", "現金及約當現金期末餘額"]);
+                const cash_begin = getValByKeywords(["期初現金及約當現金", "現金及約當現金期初餘額"]);
+                
+                // *** BUG FIX IS HERE ***
+                const exchangeRateRow = findRow(["匯率影響數"]);
+                if (exchangeRateRow) {
+                    const exchangeRateEffect = parseNumber(exchangeRateRow.data[0]);
+                    if (!isNaN(exchangeRateEffect) && exchangeRateEffect !== 0) {
+                        const dir = exchangeRateEffect > 0 ? '流入' : '流出';
+                        html += `<p>(${p_idx++})匯率影響數現金${dir}${formatDetailed(Math.abs(exchangeRateEffect))}。</p>`;
+                    }
+                }
+
+                if (!isNaN(netChange) && !isNaN(cash_end) && !isNaN(cash_begin)) {
+                    const changeDirText = netChange >= 0 ? '淨增' : '淨減';
+                    const compareDirText = netChange >= 0 ? '增加' : '減少';
+                    let text_final = isUniversityFund ? '各校務基金' : '';
+                    text_final += `現金及約當現金之${changeDirText}${formatDetailed(Math.abs(netChange))}，係期末現金${isUniversityFund ? '合計數' : ''}${formatDetailed(cash_end)}，較期初現金${isUniversityFund ? '合計數' : ''}${formatDetailed(cash_begin)}${compareDirText}之數。`;
+                    html += `<p>(${p_idx++})${text_final}</p>`;
+                }
+            }
+            return html;
+        }
+
+    </script>
+<script>
+(function(){
+const $=id=>document.getElementById(id), esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function refreshRemoveButtons(){['IS','RE','CF'].forEach(k=>{const box=$('statusBox'+k);let b=box.querySelector('.file-remove');if(!b){b=document.createElement('button');b.className='file-remove';b.textContent='移除';b.onclick=e=>{e.stopPropagation();files[k+'Table']=null;parsedData[k+'Table']=null;box.classList.remove('has-file');box.querySelector('.file-name').textContent='尚未上傳';buildReview()};box.appendChild(b)}b.style.display=files[k+'Table']?'inline-block':'none'})}
+const oldHandle=handleFiles;handleFiles=async function(fs){await oldHandle(fs);refreshRemoveButtons()};
+function nums(type){const data=parsedData[type]||[];const find=(ks)=>data.find(r=>ks.some(k=>cleanString(r.name).includes(cleanString(k))));const val=(ks)=>{const r=find(ks);return r?parseNumber(r.data[0]):NaN};return {data,find,val}}
+function buildReview(){const issues=[],placeholders=[...reportOutput.querySelectorAll('.placeholder')].map(x=>x.textContent.trim());if(parsedData.ISTable){const n=nums('ISTable'),income=n.val(['業務收入']),cost=n.val(['業務成本與費用']),ni=n.val(['業務外收入']),ne=n.val(['業務外費用']),sur=n.val(['本期賸餘','本期純益','本期短絀','本期純損']);if([income,cost,ni,ne,sur].every(Number.isFinite)){const d=income+ni-cost-ne-sur;if(Math.abs(d)>1)issues.push(`收支餘絀勾稽差異：${d.toLocaleString()}（表列單位）`)}}if(parsedData.RETable){const n=nums('RETable'),left=n.val(['賸餘合計','賸餘之部']),final=n.val(['未分配賸餘']);if(Number.isFinite(left)&&Number.isFinite(final)&&final>left)issues.push('未分配賸餘大於賸餘之部，請確認欄位解析位置')}if(parsedData.CFTable){const n=nums('CFTable'),beg=n.val(['期初現金']),change=n.val(['現金及約當現金之淨增','現金及約當現金之淨減']),end=n.val(['期末現金','現金期末餘額']);if([beg,change,end].every(Number.isFinite)){const d=beg+change-end;if(Math.abs(d)>1)issues.push(`現金勾稽差異：${d.toLocaleString()}（表列單位）`)}}const review=$('reviewOutput');review.innerHTML=`<h3>數字勾稽</h3>${issues.length?'<ul>'+issues.map(x=>`<li style="color:#b45309">${esc(x)}</li>`).join(''):'<p style="color:#047857">已通過目前可執行的基本勾稽。</p>'}<h3>待人工補充</h3>${placeholders.length?'<ol class="placeholder-list">'+[...new Set(placeholders)].map(x=>`<li>${esc(x)}</li>`).join('')+'</ol>':'<p>目前沒有待補標記。</p>'}`;$('qualityChecks').style.display='block';$('qualityChecks').className='qc-panel '+(issues.length?'':'qc-ok');$('qualityChecks').innerHTML=issues.length?`發現 ${issues.length} 項勾稽差異，請至「勾稽及待補項目」檢查。`:'基本勾稽完成。'}
+const oldGenerate=handleGenerateReport;handleGenerateReport=async function(){await oldGenerate();$('genProgress').style.width='100%';const f=$('manualFundName').value.trim(),y=$('manualYear').value.trim();if(f||y){const head=document.createElement('p');head.innerHTML=`<strong>${f?esc(f):''}${y?'（'+esc(y)+'年度）':''}</strong>`;reportOutput.prepend(head)}buildReview();setTimeout(()=>$('genProgress').style.width='0',700)};generateBtn.removeEventListener('click',oldGenerate);generateBtn.addEventListener('click',handleGenerateReport);
+function download(blob,name){const a=document.createElement('a'),u=URL.createObjectURL(blob);a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),500)}
+$('copyReportBtn').onclick=async()=>{if(!reportOutput.innerText.trim())return alert('尚未產生分析說明');await navigator.clipboard.writeText(reportOutput.innerText);statusMessage.textContent='已複製分析說明純文字'};$('downloadTxtBtn').onclick=()=>{if(reportOutput.innerText.trim())download(new Blob([reportOutput.innerText],{type:'text/plain;charset=utf-8'}),'作業基金分析說明.txt')};$('downloadHtmlBtn').onclick=()=>{if(reportOutput.innerHTML.trim())download(new Blob([`<!doctype html><meta charset="utf-8"><title>作業基金分析說明</title>${reportOutput.innerHTML}`],{type:'text/html;charset=utf-8'}),'作業基金分析說明.html')};$('exportParsedBtn').onclick=()=>{if(!window.XLSX)return alert('Excel 程式庫未載入');const wb=XLSX.utils.book_new();for(const [k,n] of [['ISTable','收支餘絀表'],['RETable','餘絀撥補表'],['CFTable','現金流量表']])if(parsedData[k]?.length)XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(parsedData[k].map(r=>({項目:r.name,...Object.fromEntries(r.data.map((v,i)=>['資料欄'+(i+1),v]))}))),n);if(!wb.SheetNames.length)return alert('尚無解析資料');XLSX.writeFile(wb,'作業基金PDF解析資料.xlsx')};$('resetAllBtn').onclick=()=>{if(!confirm('確定清除三個 PDF 與全部分析結果？'))return;files={ISTable:null,RETable:null,CFTable:null};parsedData={ISTable:null,RETable:null,CFTable:null};['IS','RE','CF'].forEach(k=>{const b=$('statusBox'+k);b.classList.remove('has-file');b.querySelector('.file-name').textContent='尚未上傳'});reportOutput.innerHTML='';outputContainer.style.display='none';$('qualityChecks').style.display='none';$('errorOutput').textContent='';$('statusMessage').textContent='已全部重設';refreshRemoveButtons()};refreshRemoveButtons();
+})();
+</script></body>
+</html>
